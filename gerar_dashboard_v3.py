@@ -16,6 +16,7 @@ import pandas as pd
 import json
 import re
 
+from jinja2 import Environment, FileSystemLoader
 
 def normalizar_destino(destino):
     """Normaliza destinos para agrupar variações similares"""
@@ -934,301 +935,32 @@ def gerar_dashboard_v3_8(caminho_planilha_tratada, caminho_saida=None, caminho_p
     # -------------------------------------------------------------------------
     grupos_disponiveis = dados_combinados.get('grupos_disponiveis', [])
     
-    # MONTAR HTML
-    html_parts = []
+
+    # -------------------------------------------------------------------------
+    # Renderizar HTML com Jinja2
+    # -------------------------------------------------------------------------
+    import json
     
-    html_parts.append(f"""<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Painel Contábil V3.8</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-    <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            min-height: 100vh;
-        }}
-        .container {{ max-width: 1800px; margin: 0 auto; }}
-        header {{
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            margin-bottom: 30px;
-            text-align: center;
-        }}
-        h1 {{ color: #333; font-size: 2.5em; margin-bottom: 10px; }}
-        .subtitle {{ color: #666; font-size: 1.1em; margin: 10px 0; }}
-        .badge {{
-            display: inline-block;
-            background: #667eea;
-            color: white;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            margin: 5px;
-        }}
-        .badge.success {{ background: #10b981; }}
-        .card-group {{
-            background: white;
-            padding: 25px;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
-            display: flex;
-        }}
-        .main-dashboard-columns {{
-            display: flex;
-            gap: 30px;
-            align-items: flex-start;
-            margin-bottom: 30px;
-        }}
-        .main-dashboard-columns > .card-group:first-child {{
-            flex: 0.7;
-            min-width: 150px;
-        }}
-        .main-dashboard-columns > .card-group:last-child {{
-            flex: 3;
-            min-width: 800px;
-        }}
-        .cards {{
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            width: 100%;
-        }}
-        .plat-section {{
-            min-width: 200px;
-            margin-bottom: 0;
-            border-bottom: none;
-            padding-bottom: 0;
-            padding-right: 25px;
-            border-right: 1px solid #eee;
-            flex: 1;
-        }}
-        .plat-section:last-child {{
-            border-right: none;
-            padding-right: 0;
-        }}
-        .card {{
-            background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
-            padding: 20px;
-            border-radius: 12px;
-            border-left: 4px solid #667eea;
-            transition: all 0.3s ease;
-        }}
-        .card:hover {{
-            transform: translateY(-3px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.15);
-        }}
-        .card-title {{
-            color: #666;
-            font-size: 0.85em;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-        }}
-        .card-value {{
-            color: #333;
-            font-size: 1.8em;
-            font-weight: bold;
-            margin: 8px 0;
-        }}
-        .card-subtitle {{
-            color: #999;
-            font-size: 0.8em;
-            margin: 4px 0;
-        }}
-        .card-percent {{
-            font-weight: bold;
-            font-size: 1em;
-            margin-top: 6px;
-        }}
-        .chart-container {{
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
-        }}
-        .chart-title {{
-            color: #333;
-            font-size: 1.3em;
-            margin-bottom: 20px;
-            text-align: center;
-            font-weight: 600;
-        }}
-        .chart-grid {{
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
-        }}
-        canvas {{ max-height: 400px; }}
-        table {{
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.95em;
-        }}
-        th {{
-            background: #667eea;
-            color: white;
-            padding: 15px;
-            text-align: left;
-            font-weight: 600;
-        }}
-        td {{
-            padding: 12px 15px;
-            border-bottom: 1px solid #eee;
-        }}
-        tr:hover {{ background: #f5f5f5; }}
-        footer {{
-            text-align: center;
-            color: white;
-            margin-top: 30px;
-            padding: 20px;
-        }}
-        .filter-panel {{
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }}
-        .filter-title {{
-            font-size: 1em;
-            font-weight: bold;
-            color: #444;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }}
-        .filter-buttons {{
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }}
-        .filter-button {{
-            padding: 8px 16px;
-            background: #e9ecef;
-            color: #495057;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 0.9em;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }}
-        .filter-button:hover {{
-            background: #dee2e6;
-            transform: translateY(-2px);
-        }}
-        .filter-button.active {{
-            background: #667eea;
-            color: white;
-            box-shadow: 0 2px 5px rgba(102, 126, 234, 0.3);
-        }}
-        .filter-button.active:hover {{
-            background: #5a67d8;
-        }}
-        .stats-container {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }}
-        .stat-card {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-        }}
-        .stat-value {{
-            font-size: 2em;
-            font-weight: bold;
-            margin: 10px 0;
-        }}
-        .stat-label {{
-            font-size: 0.9em;
-            opacity: 0.9;
-        }}
-        @media (max-width: 768px) {{
-            h1 {{ font-size: 1.8em; }}
-            .cards {{ grid-template-columns: 1fr; }}
-            .chart-grid {{ grid-template-columns: 1fr; }}
-            .main-dashboard-columns {{ flex-direction: column; }}
-        }}
-    </style>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1><i class="fas fa-chart-line"></i> Dashboard - Painel Contábil V3.8</h1>
-            <p class="subtitle">Análise Completa - Todas as Correções Aplicadas</p>
-            <div>
-                <span class="badge"><i class="fas fa-chart-bar"></i> Médias nos Gráficos</span>
-                <span class="badge success"><i class="fas fa-user"></i> Por Pessoa</span>
-                <span class="badge"><i class="fas fa-map-marked-alt"></i> Destinos Agrupados</span>
-            </div>
-            <p class="subtitle">Período analisado: {periodo_analise}</p>
-            <p class="subtitle">Atualizado: {datetime.now().strftime('%d/%m/%Y %H:%M:%S')}</p>
-        </header>
+    grupos_com_antecedencia_calc = []
+    
+    # DEPURAÇÃO: salvar registros com valor > 2000 em um arquivo CSV
+    registros_altos = [d for d in dados_iniciais if d['valor'] > 2000]
+    df_debug = pd.DataFrame(registros_altos)
+    df_debug.to_csv('registros_acima_2000.csv', index=False, encoding='utf-8-sig')
+    print(f"\n🔍 {len(registros_altos)} registros com valor >2000 salvos em 'registros_acima_2000.csv'")
+    
+    for grupo in grupos_disponiveis:
+        if grupo and grupo not in ['0', 'Cancelado']:
+            passagens = [d for d in dados_iniciais if d['tipo'] == 'passagem' and str(d.get('grupo', '')).lower() == str(grupo).lower() and d.get('antecedencia', 0) > 0]
+            if len(passagens) > 0:
+                grupo_safe = grupo.replace("'", "\\\'").replace('"', '\\\"')
+                grupo_display = grupo[:25] + ('...' if len(grupo) > 25 else '')
+                grupos_com_antecedencia_calc.append({'safe': grupo_safe, 'display': grupo_display})
 
-        <div class="main-dashboard-columns">
-            <div class="card-group">
-                <div class="cards">
-                    <div class="card">
-                        <div class="card-title">Total Geral</div>
-                        <div class="card-value">{formatar_numero(total_geral)}</div>
-                        <div class="card-subtitle">Orçado: {formatar_numero(orcados['total'])}</div>
-                        <div class="card-percent" style="color: {get_color(perc_total)};">
-                            {perc_total:.1f}% utilizado
-                        </div>
-                    </div>
-                    <div class="card">
-                        <div class="card-title">✈️ Passagens</div>
-                        <div class="card-value">{formatar_numero(total_passagens)}</div>
-                        <div class="card-subtitle">Orçado: {formatar_numero(orcados['passagens'])}</div>
-                        <div class="card-percent" style="color: {get_color(perc_pass)};">
-                            {perc_pass:.1f}% utilizado
-                        </div>
-                    </div>
-                    <div class="card">
-                        <div class="card-title">🏨 Hospedagens</div>
-                        <div class="card-value">{formatar_numero(total_hospedagens)}</div>
-                        <div class="card-subtitle">Orçado: {formatar_numero(orcados['hospedagens'])}</div>
-                        <div class="card-percent" style="color: {get_color(perc_hosp)};">
-                            {perc_hosp:.1f}% utilizado
-                        </div>
-                    </div>
-                    <div class="card">
-                        <div class="card-title">🚗 Transporte</div>
-                        <div class="card-value">{formatar_numero(total_transporte)}</div>
-                        <div class="card-subtitle">Orçado: {formatar_numero(orcados['transporte'])}</div>
-                        <div class="card-percent" style="color: {get_color(perc_trans)};">
-                            {perc_trans:.1f}% utilizado
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card-group">
-""")
-
-    # CARDS POR PLATAFORMA
+    # Construir listagem de plataformas para o jinja (usamos o df_plataforma)
+    plataformas_calc = []
     for plat_nome in plataformas_alvo_ordem:
         row = df_plataforma[df_plataforma['Plataforma'].str.upper() == plat_nome]
-        
         if not row.empty:
             row = row.iloc[0]
             orc_plat = orcados.get('por_plataforma', {}).get(plat_nome, {'total': 0, 'passagens': 0, 'hospedagens': 0, 'transporte': 0})
@@ -1238,7 +970,7 @@ def gerar_dashboard_v3_8(caminho_planilha_tratada, caminho_saida=None, caminho_p
             v_hosp = row.get('Valor_hospedagens', 0)
             v_transp = row.get('Valor_transporte', 0)
 
-            o_total = orc_plat['total']
+            o_total = orc_plat['total'] if 'total' in orc_plat else 0
             o_pass = orc_plat.get('passagens', 0)
             o_hosp = orc_plat.get('hospedagens', 0)
             o_transp = orc_plat.get('transporte', 0)
@@ -1248,587 +980,60 @@ def gerar_dashboard_v3_8(caminho_planilha_tratada, caminho_saida=None, caminho_p
             p_hosp = (v_hosp / o_hosp * 100) if o_hosp > 0 else 0
             p_transp = (v_transp / o_transp * 100) if o_transp > 0 else 0
         else:
-            v_total = v_pass = v_hosp = v_transp = 0
-            o_total = o_pass = o_hosp = o_transp = 0
-            p_total = p_pass = p_hosp = p_transp = 0
-        
-        html_parts.append(f"""
-                <div class="plat-section">
-                    <div class="cards">
-                        <div class="card">
-                            <div class="card-title">Total {plat_nome}</div>
-                            <div class="card-value">{formatar_numero(v_total)}</div>
-                            <div class="card-subtitle">Orçado: {formatar_numero(o_total)}</div>
-                            <div class="card-percent" style="color: {get_color(p_total)};">
-                                {p_total:.1f}% utilizado
-                            </div>
-                        </div>
-                        <div class="card">
-                            <div class="card-title">✈️ Passagens</div>
-                            <div class="card-value">{formatar_numero(v_pass)}</div>
-                            <div class="card-subtitle">Orçado: {formatar_numero(o_pass)}</div>
-                            <div class="card-percent" style="color: {get_color(p_pass)};">
-                                {p_pass:.1f}% utilizado
-                            </div>
-                        </div>
-                        <div class="card">
-                            <div class="card-title">🏨 Hospedagens</div>
-                            <div class="card-value">{formatar_numero(v_hosp)}</div>
-                            <div class="card-subtitle">Orçado: {formatar_numero(o_hosp)}</div>
-                            <div class="card-percent" style="color: {get_color(p_hosp)};">
-                                {p_hosp:.1f}% utilizado
-                            </div>
-                        </div>
-                        <div class="card">
-                            <div class="card-title">🚗 Transporte</div>
-                            <div class="card-value">{formatar_numero(v_transp)}</div>
-                            <div class="card-subtitle">Orçado: {formatar_numero(o_transp)}</div>
-                            <div class="card-percent" style="color: {get_color(p_transp)};">
-                                {p_transp:.1f}% utilizado
-                            </div>
-                        </div>
-                    </div>
-                </div>
-""")
+            v_total = v_pass = v_hosp = v_transp = o_total = o_pass = o_hosp = o_transp = p_total = p_pass = p_hosp = p_transp = 0
+            
+        plataformas_calc.append({
+            'nome': plat_nome,
+            'v_total': v_total, 'o_total': o_total, 'p_total': p_total,
+            'v_pass': v_pass, 'o_pass': o_pass, 'p_pass': p_pass,
+            'v_hosp': v_hosp, 'o_hosp': o_hosp, 'p_hosp': p_hosp,
+            'v_transp': v_transp, 'o_transp': o_transp, 'p_transp': p_transp
+        })
 
-    html_parts.append("""
-            </div>
-        </div>
 
-        <!-- SEÇÃO PASSAGENS -->
-        
-
-        <!-- FILTRO PASSAGENS - MÉDIA COM FILTRO NACIONAL/INTERNACIONAL -->
-        <div class="filter-panel">
-            <div class="filter-title">✈️ Filtro: Passagens - Preço Médio (Orçado vs Realizado)</div>
-            <div class="filter-buttons" id="filtroPass">
-                <button class="filter-button active" onclick="aplicarFiltroPass('total')">
-                    <i class="fas fa-globe"></i> Total
-                </button>
-                <button class="filter-button" onclick="aplicarFiltroPass('nacional')">
-                    <i class="fas fa-home"></i> Nacional
-                </button>
-                <button class="filter-button" onclick="aplicarFiltroPass('internacional')">
-                    <i class="fas fa-plane"></i> Internacional
-                </button>
-            </div>
-        </div>
-
-        <div class="chart-grid">
-            <div class="chart-container">
-                <h3 class="chart-title">✈️ Passagens - Preço Médio (Orçado vs Realizado) </h3>
-                <canvas id="chartPass"></canvas>
-            </div>
-            <div class="chart-container">
-                <h3 class="chart-title">✈️ Passagens - Quantidade Detalhada </h3>
-                <canvas id="chartPassQtdFiltro"></canvas>
-            </div>
-        </div>
-
-        <!-- SEÇÃO HOSPEDAGENS -->
-        
-
-        <!-- FILTRO HOSPEDAGENS - MÉDIA COM FILTRO NACIONAL/INTERNACIONAL -->
-        <div class="filter-panel">
-            <div class="filter-title">🏨 Filtro: Hospedagens - Análise Detalhada por Tipo</div>
-            <div class="filter-buttons" id="filtroHosp">
-                <button class="filter-button active" onclick="aplicarFiltroHosp('total')">
-                    <i class="fas fa-globe"></i> Total
-                </button>
-                <button class="filter-button" onclick="aplicarFiltroHosp('nacional')">
-                    <i class="fas fa-home"></i> Nacional
-                </button>
-                <button class="filter-button" onclick="aplicarFiltroHosp('internacional')">
-                    <i class="fas fa-hotel"></i> Internacional
-                </button>
-            </div>
-        </div>
-
-        <div class="chart-grid">
-            <div class="chart-container">
-                <h3 class="chart-title">🏨 Hospedagens - MÉDIA Detalhada (use o filtro acima)</h3>
-                <canvas id="chartHosp"></canvas>
-            </div>
-            <div class="chart-container">
-                <h3 class="chart-title">🏨 Hospedagens - Quantidade Detalhada (mesmo filtro)</h3>
-                <canvas id="chartHospQtdFiltro"></canvas>
-            </div>
-        </div>
-
-        <!-- TOP 10 GASTADORES POR PESSOA -->
-        <div class="chart-container">
-            <h3 class="chart-title">👤 Top 10 Maiores Gastadores POR PESSOA (Passagens + Hospedagens)</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Pessoa</th>
-                        <th>Grupo</th>
-                        <th style="text-align: right;">Passagens</th>
-                        <th style="text-align: right;">Hospedagens</th>
-                        <th style="text-align: right;">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-""")
+    # Preparar df_grupo_calc
+    df_grupo_calc_dicts = df_grupo_calc.to_dict('records')
     
-    for i, pessoa_data in enumerate(top10_gastadores, 1):
-        html_parts.append(f"""
-                    <tr>
-                        <td><strong>#{i}</strong></td>
-                        <td><strong>{pessoa_data['passageiro'][:50]}</strong></td>
-                        <td>{pessoa_data['grupo'][:30] if pessoa_data['grupo'] else 'N/A'}</td>
-                        <td style="text-align: right;">R$ {pessoa_data['passagens']:,.2f}</td>
-                        <td style="text-align: right;">R$ {pessoa_data['hospedagens']:,.2f}</td>
-                        <td style="text-align: right;"><strong style="color: #d32f2f;">R$ {pessoa_data['total']:,.2f}</strong></td>
-                    </tr>
-""")
+    # Preparar JSONs para gráficos JS
+    dadosGraficos_dict = {
+        'pass': {
+            'total': {'orc': media_pass_orcado_total, 'real': media_pass_realizado_total, 'qtdOrc': qtd_passagens_orcado_total, 'qtdReal': qtd_passagens_realizado_total},
+            'nacional': {'orc': media_pass_orcado_nacional, 'real': media_pass_realizado_nacional, 'qtdOrc': qtd_passagens_orcado_nacional, 'qtdReal': qtd_passagens_realizado_nacional},
+            'internacional': {'orc': media_pass_orcado_internacional, 'real': media_pass_realizado_internacional, 'qtdOrc': qtd_passagens_orcado_internacional, 'qtdReal': qtd_passagens_realizado_internacional}
+        },
+        'hosp': {
+            'total': {'orc': media_hosp_orcado_total, 'real': media_hosp_realizado_total, 'qtdOrc': qtd_hospedagens_orcado_total, 'qtdReal': qtd_hospedagens_realizado_total},
+            'nacional': {'orc': media_hosp_orcado_nacional, 'real': media_hosp_realizado_nacional, 'qtdOrc': qtd_hospedagens_orcado_nacional, 'qtdReal': qtd_hospedagens_realizado_nacional},
+            'internacional': {'orc': media_hosp_orcado_internacional, 'real': media_hosp_realizado_internacional, 'qtdOrc': qtd_hospedagens_orcado_internacional, 'qtdReal': qtd_hospedagens_realizado_internacional}
+        }
+    }
     
-    html_parts.append("""
-                </tbody>
-            </table>
-        </div>
+    # Render usando template separado
+    base_dir = Path(__file__).parent
+    env = Environment(loader=FileSystemLoader(str(base_dir)))
+    template = env.get_template('dashboard_template.html')
 
-        <!-- FILTRO ANTECEDÊNCIA -->
-        <div class="filter-panel">
-            <div class="filter-title">📅 Filtro: Análise de Antecedência POR GRUPO</div>
-            <div class="filter-buttons" id="filtroAnt">
-                <button class="filter-button active" onclick="aplicarFiltroAnt('todos')">
-                    <i class="fas fa-users"></i> Todos os Grupos
-                </button>
-""")
-    
-    # Adicionar botões para cada grupo
-    grupos_disponiveis = dados_combinados.get('grupos_disponiveis', [])
-    print(f"\n📋 Gerando {len(grupos_disponiveis)} botões de filtro de grupo")
-    
-    # Filtrar grupos válidos com dados de antecedência
-    grupos_com_antecedencia = []
-    dados_iniciais = dados_combinados.get('dados', [])
-    
-    # DEPURAÇÃO: salvar registros com valor > 2000 em um arquivo CSV
-    registros_altos = [d for d in dados_iniciais if d['valor'] > 2000]
-    df_debug = pd.DataFrame(registros_altos)
-    df_debug.to_csv('registros_acima_2000.csv', index=False, encoding='utf-8-sig')
-    print(f"🔍 {len(registros_altos)} registros com valor >2000 salvos em 'registros_acima_2000.csv'")
-    
-    for grupo in grupos_disponiveis:
-        if grupo and grupo not in ['0', 'Cancelado']:
-            # Verificar se tem passagens com antecedência
-            passagens = [d for d in dados_iniciais if d['tipo'] == 'passagem' and d.get('grupo', '').lower() == grupo.lower() and d.get('antecedencia', 0) > 0]
-            if len(passagens) > 0:
-                grupos_com_antecedencia.append(grupo)
-                grupo_safe = grupo.replace("'", "\\'").replace('"', '\\"')
-                grupo_display = grupo[:25] + ('...' if len(grupo) > 25 else '')
-                print(f"   - Botão: {grupo_display} ({len(passagens)} passagens)")
-                html_parts.append(f"""
-                <button class="filter-button" onclick="aplicarFiltroAnt('{grupo_safe}')">
-                    <i class="fas fa-user-tag"></i> {grupo_display}
-                </button>
-""")
-    
-    html_parts.append("""
-            </div>
-        </div>
+    html = template.render(
+        periodo_analise=periodo_analise,
+        data_atual=datetime.now().strftime('%d/%m/%Y %H:%M:%S'),
+        total_geral=total_geral,
+        orcados=orcados,
+        total_passagens=total_passagens, total_hospedagens=total_hospedagens, total_transporte=total_transporte,
+        perc_total=perc_total, perc_pass=perc_pass, perc_hosp=perc_hosp, perc_trans=perc_trans,
+        formatar_numero=formatar_numero,
+        get_color=get_color,
+        plataformas_calc=plataformas_calc,
+        top10_gastadores=top10_gastadores,
+        grupos_com_antecedencia=grupos_com_antecedencia_calc,
+        top_dest_freq=top_dest_freq,
+        dest_val=dest_val,
+        top_dest_media=top_dest_media,
+        df_grupo_calc=df_grupo_calc_dicts,
+        total_registros=dados_combinados.get('total_registros', 0),
+        dadosGraficos_json=json.dumps(dadosGraficos_dict),
+        dados_iniciais_json=json.dumps(dados_iniciais)
+    )
 
-        <div class="chart-container">
-            <h3 class="chart-title">📅 Análise de Antecedência (Passagens)</h3>
-            <div class="stats-container" id="statsAnt"></div>
-            <canvas id="chartAnt"></canvas>
-        </div>
-
-        <!-- DESTINOS -->
-        <div class="chart-grid">
-            <div class="chart-container">
-                <h3 class="chart-title">📍 Top 10 Destinos Mais Frequentes</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Destino</th>
-                            <th style="text-align: right;">Quantidade</th>
-                            <th style="text-align: right;">Valor Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-""")
-    
-    for dest, qtd in top_dest_freq:
-        val = dest_val[dest]
-        html_parts.append(f"""
-                        <tr>
-                            <td>{dest[:40]}</td>
-                            <td style="text-align: right;"><strong>{qtd}</strong></td>
-                            <td style="text-align: right;">R$ {val:,.2f}</td>
-                        </tr>
-""")
-    
-    html_parts.append("""
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="chart-container">
-                <h3 class="chart-title">💰 Top 10 Destinos Mais Caros</h3>
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Destino</th>
-                            <th style="text-align: right;">Valor Total</th>
-                            <th style="text-align: right;">Média por Viagem</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-""")
-    
-    for dest, val, media in top_dest_media:
-        html_parts.append(f"""
-                        <tr>
-                            <td>{dest[:40]}</td>
-                            <td style="text-align: right;"><strong>R$ {val:,.2f}</strong></td>
-                            <td style="text-align: right;">R$ {media:,.2f}</td>
-                        </tr>
-""")
-    
-    html_parts.append("""
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- POR GRUPO -->
-        <div class="chart-container">
-            <h3 class="chart-title">🏢 Por Grupo de Pessoas </h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Grupo</th>
-                        <th style="text-align: right;">Passagens</th>
-                        <th style="text-align: right;">Hospedagens</th>
-                        <th style="text-align: right;">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-""")
-    
-    # Calcular totais por grupo a partir dos dados filtrados
-    grupo_gastos = {}
-    for d in dados_iniciais:
-        g = d.get('grupo', '')
-        if not g or g == 'nan':
-            continue
-        if g not in grupo_gastos:
-            grupo_gastos[g] = {'Grupo': g, 'Valor_passagens': 0, 'Valor_hospedagens': 0, 'Valor_Total': 0}
-        if d['tipo'] == 'passagem':
-            grupo_gastos[g]['Valor_passagens'] += d['valor']
-        else:
-            grupo_gastos[g]['Valor_hospedagens'] += d['valor']
-        grupo_gastos[g]['Valor_Total'] += d['valor']
-
-# Criar DataFrame e ordenar
-    df_grupo_calc = pd.DataFrame(list(grupo_gastos.values())).sort_values('Valor_Total', ascending=False).head(10)
-
-# Gerar linhas da tabela
-    for _, row in df_grupo_calc.iterrows():
-        html_parts.append(f"""
-                        <tr>
-                            <td><strong>{row['Grupo']}</strong></td>
-                            <td style="text-align: right;">R$ {row['Valor_passagens']:,.2f}</td>
-                            <td style="text-align: right;">R$ {row['Valor_hospedagens']:,.2f}</td>
-                            <td style="text-align: right;"><strong>R$ {row['Valor_Total']:,.2f}</strong></td>
-                        </tr>
-    """)
-    
-    html_parts.append(f"""
-                </tbody>
-            </table>
-        
-        <footer>
-            <p style="font-size: 1.2em; margin-bottom: 10px;">
-                <i class="fas fa-chart-line"></i> Dashboard V3.8 
-            </p>
-            <p>Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} | 
-               {dados_combinados.get('total_registros', 0):,} registros carregados</p>
-        </footer>
-    </div>
-
-    <script>
-        Chart.register(ChartDataLabels);
-
-        const dadosGraficos = {{
-            pass: {{
-                total: {{ orc: {media_pass_orcado_total:.2f}, real: {media_pass_realizado_total:.2f}, 
-                         qtdOrc: {qtd_passagens_orcado_total}, qtdReal: {qtd_passagens_realizado_total} }},
-                nacional: {{ orc: {media_pass_orcado_nacional:.2f}, real: {media_pass_realizado_nacional:.2f},
-                           qtdOrc: {qtd_passagens_orcado_nacional}, qtdReal: {qtd_passagens_realizado_nacional} }},
-                internacional: {{ orc: {media_pass_orcado_internacional:.2f}, real: {media_pass_realizado_internacional:.2f},
-                                qtdOrc: {qtd_passagens_orcado_internacional}, qtdReal: {qtd_passagens_realizado_internacional} }}
-            }},
-            hosp: {{
-                total: {{ orc: {media_hosp_orcado_total:.2f}, real: {media_hosp_realizado_total:.2f},
-                         qtdOrc: {qtd_hospedagens_orcado_total}, qtdReal: {qtd_hospedagens_realizado_total} }},
-                nacional: {{ orc: {media_hosp_orcado_nacional:.2f}, real: {media_hosp_realizado_nacional:.2f},
-                           qtdOrc: {qtd_hospedagens_orcado_nacional}, qtdReal: {qtd_hospedagens_realizado_nacional} }},
-                internacional: {{ orc: {media_hosp_orcado_internacional:.2f}, real: {media_hosp_realizado_internacional:.2f},
-                                qtdOrc: {qtd_hospedagens_orcado_internacional}, qtdReal: {qtd_hospedagens_realizado_internacional} }}
-            }}
-        }};
-
-        const dadosCompletos = {json.dumps(dados_iniciais)};
-
-        let chartPass, chartHosp, chartAnt, chartPassQtdFiltro, chartHospQtdFiltro;
-
-        const optsChart = {{
-            responsive: true,
-            plugins: {{
-                legend: {{ display: true }},
-                datalabels: {{
-                    color: '#fff',
-                    font: {{ weight: 'bold', size: 14 }},
-                    formatter: (val) => val.toFixed(0).toLocaleString('pt-BR')
-                }}
-            }},
-            scales: {{ y: {{ beginAtZero: true }} }}
-        }};
-
-        function criarChartPass(tipo) {{
-            const d = dadosGraficos.pass[tipo];
-            const ctx = document.getElementById('chartPass').getContext('2d');
-            if (chartPass) chartPass.destroy();
-            
-            chartPass = new Chart(ctx, {{
-                type: 'bar',
-                data: {{
-                    labels: ['Orçado (Média)', 'Realizado (Média)'],
-                    datasets: [{{
-                        label: 'Média por Passagem (R$)',
-                        data: [d.orc, d.real],
-                        backgroundColor: ['rgba(54, 162, 235, 0.7)', 'rgba(255, 99, 132, 0.7)']
-                    }}]
-                }},
-                options: optsChart
-            }});
-            
-            // Criar gráfico de quantidade correspondente
-            const ctxQtd = document.getElementById('chartPassQtdFiltro').getContext('2d');
-            if (chartPassQtdFiltro) chartPassQtdFiltro.destroy();
-            
-            chartPassQtdFiltro = new Chart(ctxQtd, {{
-                type: 'bar',
-                data: {{
-                    labels: ['Orçado', 'Realizado'],
-                    datasets: [{{
-                        label: 'Quantidade de Passagens',
-                        data: [d.qtdOrc, d.qtdReal],
-                        backgroundColor: ['rgba(54, 162, 235, 0.7)', 'rgba(255, 99, 132, 0.7)']
-                    }}]
-                }},
-                options: optsChart
-            }});
-        }}
-
-        function criarChartHosp(tipo) {{
-            const d = dadosGraficos.hosp[tipo];
-            const ctx = document.getElementById('chartHosp').getContext('2d');
-            if (chartHosp) chartHosp.destroy();
-            
-            chartHosp = new Chart(ctx, {{
-                type: 'bar',
-                data: {{
-                    labels: ['Orçado (Média)', 'Realizado (Média)'],
-                    datasets: [{{
-                        label: 'Média por Diária (R$)',
-                        data: [d.orc, d.real],
-                        backgroundColor: ['rgba(54, 162, 235, 0.7)', 'rgba(255, 99, 132, 0.7)']
-                    }}]
-                }},
-                options: optsChart
-            }});
-            
-            // Criar gráfico de quantidade correspondente
-            const ctxQtd = document.getElementById('chartHospQtdFiltro').getContext('2d');
-            if (chartHospQtdFiltro) chartHospQtdFiltro.destroy();
-            
-            chartHospQtdFiltro = new Chart(ctxQtd, {{
-                type: 'bar',
-                data: {{
-                    labels: ['Orçado', 'Realizado'],
-                    datasets: [{{
-                        label: 'Quantidade de Diárias',
-                        data: [d.qtdOrc, d.qtdReal],
-                        backgroundColor: ['rgba(54, 162, 235, 0.7)', 'rgba(255, 99, 132, 0.7)']
-                    }}]
-                }},
-                options: optsChart
-            }});
-        }}
-
-        function criarChartAnt(grupoFiltro) {{
-            let dados_filtrados = dadosCompletos.filter(d => 
-                d.tipo === 'passagem' && d.antecedencia > 0
-            );
-            
-            // Aplicar filtro de grupo se não for "todos"
-            if (grupoFiltro !== 'todos') {{
-                const grupoLower = grupoFiltro.toLowerCase().trim();
-                dados_filtrados = dados_filtrados.filter(d => {{
-                    if (!d.grupo) return false;
-                    const grupoDataLower = d.grupo.toLowerCase().trim();
-                    // Busca exata ou contém
-                    return grupoDataLower === grupoLower || grupoDataLower.includes(grupoLower) || grupoLower.includes(grupoDataLower);
-                }});
-            }}
-            
-            console.log('Análise de Antecedência:', {{
-                grupoFiltro: grupoFiltro,
-                totalDados: dadosCompletos.length,
-                passagensComAntecedencia: dadosCompletos.filter(d => d.tipo === 'passagem' && d.antecedencia > 0).length,
-                dadosFiltrados: dados_filtrados.length,
-                exemplosGrupos: dados_filtrados.slice(0, 3).map(d => d.grupo)
-            }});
-            
-            if (dados_filtrados.length === 0) {{
-                document.getElementById('statsAnt').innerHTML = 
-                    '<div class="stat-card"><div class="stat-label">Sem dados para este filtro</div><div class="stat-value">0</div></div>';
-                
-                const canvas = document.getElementById('chartAnt');
-                if (canvas) {{
-                    const parent = canvas.parentElement;
-                    parent.innerHTML = '<p style="text-align:center; color:#666; padding:40px;">Nenhum dado de antecedência encontrado para: <strong>' + grupoFiltro + '</strong></p><canvas id="chartAnt"></canvas>';
-                }}
-                return;
-            }}
-            
-            const ants = dados_filtrados.map(d => d.antecedencia);
-            const media = ants.reduce((a, b) => a + b, 0) / ants.length;
-            const ordenado = [...ants].sort((a, b) => a - b);
-            const mediana = ordenado.length % 2 === 0 ? 
-                (ordenado[ordenado.length/2 - 1] + ordenado[ordenado.length/2]) / 2 : 
-                ordenado[Math.floor(ordenado.length/2)];
-            const minimo = Math.min(...ants);
-            const maximo = Math.max(...ants);
-            
-            document.getElementById('statsAnt').innerHTML = `
-                <div class="stat-card">
-                    <div class="stat-label">Total de Passagens</div>
-                    <div class="stat-value">${{dados_filtrados.length}}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Média</div>
-                    <div class="stat-value">${{media.toFixed(1)}} dias</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Mediana</div>
-                    <div class="stat-value">${{mediana.toFixed(1)}} dias</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-label">Mínimo / Máximo</div>
-                    <div class="stat-value">${{minimo.toFixed(0)}} / ${{maximo.toFixed(0)}} dias</div>
-                </div>
-            `;
-            
-            const faixas = {{
-                '0-7 dias': ants.filter(a => a <= 7).length,
-                '8-15 dias': ants.filter(a => a > 7 && a <= 15).length,
-                '16-30 dias': ants.filter(a => a > 15 && a <= 30).length,
-                '30+ dias': ants.filter(a => a > 30).length
-            }};
-            
-            const ctx = document.getElementById('chartAnt');
-            if (!ctx) {{
-                console.error('Canvas chartAnt não encontrado!');
-                return;
-            }}
-            
-            const context = ctx.getContext('2d');
-            if (chartAnt) chartAnt.destroy();
-            
-            chartAnt = new Chart(context, {{
-                type: 'bar',
-                data: {{
-                    labels: Object.keys(faixas),
-                    datasets: [{{
-                        label: 'Quantidade de Passagens',
-                        data: Object.values(faixas),
-                        backgroundColor: 'rgba(75, 192, 192, 0.7)'
-                    }}]
-                }},
-                options: optsChart
-            }});
-        }}
-        function atualizarTabelaValoresAltos(plataformaFiltro) {{
-            const tabelaBody = document.getElementById('corpoTabelaValoresAltos');
-            tabelaBody.innerHTML = '';
-
-            const registrosFiltrados = dadosCompletos.filter(d => {{
-                if (d.valor <= 2000) return false;
-                if (plataformaFiltro === 'todas') return true;
-                const plat = (d.plataforma || '').trim().toUpperCase();
-                return plat === plataformaFiltro.toUpperCase();
-            }});
-
-            registrosFiltrados.sort((a, b) => b.valor - a.valor);
-
-            if (registrosFiltrados.length === 0) {{
-                tabelaBody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Nenhum registro encontrado</td></tr>';
-                return;
-            }}
-
-            registrosFiltrados.forEach(d => {{
-                const row = tabelaBody.insertRow();
-                row.insertCell().textContent = d.passageiro || 'N/A';
-                row.insertCell().textContent = d.tipo === 'passagem' ? 'Passagem' : 'Hospedagem';
-                row.insertCell().innerHTML = `<strong>R$ ${{d.valor.toFixed(2)}}</strong>`;
-                row.insertCell().textContent = d.plataforma || 'Não informado';
-                row.insertCell().textContent = d.grupo || 'N/A';
-            }});
-        }}
-        function aplicarFiltroValorAlto(plataforma) {{
-            document.querySelectorAll('#filtroValorAlto .filter-button').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            atualizarTabelaValoresAltos(plataforma);
-        }}
-        function aplicarFiltroPass(tipo) {{
-            document.querySelectorAll('#filtroPass .filter-button').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            criarChartPass(tipo);
-        }}
-
-        function aplicarFiltroHosp(tipo) {{
-            document.querySelectorAll('#filtroHosp .filter-button').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            criarChartHosp(tipo);
-        }}
-
-        function aplicarFiltroAnt(grupo) {{
-            document.querySelectorAll('#filtroAnt .filter-button').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            criarChartAnt(grupo);
-        }}
-
-        document.addEventListener('DOMContentLoaded', () => {{
-            console.log('📊 Dashboard carregando...');
-            console.log('Total de dados:', dadosCompletos.length);
-            console.log('Passagens:', dadosCompletos.filter(d => d.tipo === 'passagem').length);
-            console.log('Passagens com antecedência:', dadosCompletos.filter(d => d.tipo === 'passagem' && d.antecedencia > 0).length);
-            
-            
-
-            // Gráficos de média com filtros
-            criarChartPass('total');
-            criarChartHosp('total');
-            criarChartAnt('todos');
-            
-            atualizarTabelaValoresAltos('todas');
-            
-            console.log('✅ Dashboard V3.8 carregado!');
-        }});
-    </script>
-</body>
-</html>
-""")
-    
-    html = ''.join(html_parts)
-    
     with open(caminho_saida, 'w', encoding='utf-8') as f:
         f.write(html)
     
