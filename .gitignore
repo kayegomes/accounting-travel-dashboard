@@ -1,0 +1,26 @@
+# Instâncias do Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Arquivos de dados
+*.csv
+*.xlsx
+*.xls
+*.json
+
+# Saídas (exceto de templates)
+*.html
+!template.html
+
+# Ambientes Virtuais
+venv/
+.env
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Sistema Operacional
+.DS_Store
+Thumbs.db
