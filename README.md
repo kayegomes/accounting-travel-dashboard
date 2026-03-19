@@ -44,7 +44,7 @@ Garanta que seu sistema contenha o [Python](https://www.python.org/downloads/) c
 
 ```bash
 # Baixe ou clone o repositório
-git clone https://github.com/SEU_USUARIO/SEU_REPOSITORIO.git
+git clone https://github.com/kayegomes/accounting-travel-dashboard.git
 
 # Acesse a pasta do script principal
 cd painel_contabil
