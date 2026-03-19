@@ -1011,7 +1011,7 @@ def gerar_dashboard_v3_8(caminho_planilha_tratada, caminho_saida=None, caminho_p
     # Render usando template separado
     base_dir = Path(__file__).parent
     env = Environment(loader=FileSystemLoader(str(base_dir)))
-    template = env.get_template('dashboard_template.html')
+    template = env.get_template('dashboard_template.jinja2')
 
     html = template.render(
         periodo_analise=periodo_analise,
